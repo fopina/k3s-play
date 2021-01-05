@@ -4,27 +4,31 @@ cd $(dirname $0)
 
 set -e
 
-function master() {
-    multipass launch --name k3s-master --mem 1G --disk 5G bionic || true
-    multipass exec k3s-master -- sh -c "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -"
-    multipass exec k3s-master -- sh -c 'sudo add-apt-repository \
+K3S_ARGS=""
+#K3S_ARGS="--docker"
+
+function install_docker() {
+    test "${K3S_ARGS#*docker}" == "$K3S_ARGS" && return 0
+    NAME=$1
+    multipass exec ${NAME} -- sh -c "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -"
+    multipass exec ${NAME} -- sh -c 'sudo add-apt-repository \
    "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
    $(lsb_release -cs) \
    stable"'
-    multipass exec k3s-master -- sudo apt-get -y install docker-ce docker-ce-cli containerd.io
-    multipass exec k3s-master -- sudo sh -c "curl -sfL https://get.k3s.io | sh -s -- --docker"
+    multipass exec ${NAME} -- sudo apt-get -y install docker-ce docker-ce-cli containerd.io
+}
+
+function master() {
+    multipass launch --name k3s-master --mem 1G --disk 5G bionic || true
+    install_docker k3s-master
+    multipass exec k3s-master -- sudo sh -c "curl -sfL https://get.k3s.io | sh -s -- ${K3S_ARGS}"
 }
 
 function worker() {
     NAME=${1:-worker}
     multipass launch --name k3s-$NAME --mem 1G --disk 5G bionic || true
-    multipass exec k3s-$NAME -- sh -c "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -"
-    multipass exec k3s-$NAME -- sh -c 'sudo add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-   $(lsb_release -cs) \
-   stable"'
-    multipass exec k3s-$NAME -- sudo apt-get -y install docker-ce docker-ce-cli containerd.io
-    multipass exec k3s-$NAME -- sudo sh -c "curl -sfL https://get.k3s.io | K3S_URL=\"https://${MASTER_IP}:6443\" K3S_TOKEN=\"${TOKEN}\" sh -s -- --docker"
+    install_docker k3s-$NAME
+    multipass exec k3s-$NAME -- sudo sh -c "curl -sfL https://get.k3s.io | K3S_URL=\"https://${MASTER_IP}:6443\" K3S_TOKEN=\"${TOKEN}\" sh -s -- ${K3S_ARGS}"
 }
 
 master
