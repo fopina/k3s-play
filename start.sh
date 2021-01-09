@@ -4,18 +4,18 @@ cd $(dirname $0)
 
 set -e
 
-K3S_ARGS=""
-#K3S_ARGS="--docker"
+# such as --docker
+K3S_ARGS="$@"
 
 function install_docker() {
     test "${K3S_ARGS#*docker}" == "$K3S_ARGS" && return 0
-    NAME=$1
-    multipass exec ${NAME} -- sh -c "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -"
-    multipass exec ${NAME} -- sh -c 'sudo add-apt-repository \
+    ln=$1
+    multipass exec ${ln} -- sh -c "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -"
+    multipass exec ${ln} -- sh -c 'sudo add-apt-repository \
    "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
    $(lsb_release -cs) \
    stable"'
-    multipass exec ${NAME} -- sudo apt-get -y install docker-ce docker-ce-cli containerd.io
+    multipass exec ${ln} -- sudo apt-get -y install docker-ce docker-ce-cli containerd.io
 }
 
 function master() {
